@@ -4471,6 +4471,7 @@ export type QueryClusterElementDynamicPropertiesArgs = {
   connectionId?: InputMaybe<Scalars['Long']['input']>;
   inputParameters?: InputMaybe<Scalars['Map']['input']>;
   lookupDependsOnPaths?: InputMaybe<Array<Scalars['String']['input']>>;
+  mcpComponentId: Scalars['ID']['input'];
   propertyName: Scalars['String']['input'];
 };
 
@@ -4490,6 +4491,7 @@ export type QueryClusterElementOptionsArgs = {
   connectionId?: InputMaybe<Scalars['Long']['input']>;
   inputParameters?: InputMaybe<Scalars['Map']['input']>;
   lookupDependsOnPaths?: InputMaybe<Array<Scalars['String']['input']>>;
+  mcpComponentId: Scalars['ID']['input'];
   propertyName: Scalars['String']['input'];
 };
 
