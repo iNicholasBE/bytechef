@@ -1837,6 +1837,24 @@ export type GenerateFromDocumentationInput = {
   userPrompt?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type GeneratePropertyValueInput = {
+  dynamic: Scalars['Boolean']['input'];
+  environmentId: Scalars['Int']['input'];
+  mode: PropertyCopilotMode;
+  prompt: Scalars['String']['input'];
+  propertyPath: Scalars['String']['input'];
+  propertyType?: InputMaybe<Scalars['String']['input']>;
+  workflowId: Scalars['ID']['input'];
+  workflowNodeName: Scalars['String']['input'];
+};
+
+export type GeneratePropertyValuePayload = {
+  __typename?: 'GeneratePropertyValuePayload';
+  message?: Maybe<Scalars['String']['output']>;
+  valid: Scalars['Boolean']['output'];
+  value: Scalars['String']['output'];
+};
+
 export type GenerateSpecificationInput = {
   baseUrl?: InputMaybe<Scalars['String']['input']>;
   endpoints: Array<EndpointDefinitionInput>;
@@ -2522,6 +2540,7 @@ export type Mutation = {
    */
   generateAiHubChatTitle: AiHubChat;
   generateFromDocumentation: ApiConnector;
+  generatePropertyValue: GeneratePropertyValuePayload;
   generateSpecification: GenerateSpecificationResponse;
   importDataTableCsv: Scalars['Boolean']['output'];
   importOpenApiSpecification: ApiConnector;
@@ -3330,6 +3349,11 @@ export type MutationGenerateAiHubChatTitleArgs = {
 
 export type MutationGenerateFromDocumentationArgs = {
   input: GenerateFromDocumentationInput;
+};
+
+
+export type MutationGeneratePropertyValueArgs = {
+  input: GeneratePropertyValueInput;
 };
 
 
@@ -4173,6 +4197,11 @@ export type Property = {
   required?: Maybe<Scalars['Boolean']['output']>;
   type: PropertyType;
 };
+
+export enum PropertyCopilotMode {
+  Formula = 'FORMULA',
+  Text = 'TEXT'
+}
 
 export enum PropertyType {
   Array = 'ARRAY',
