@@ -13,6 +13,7 @@ jackson = "2.19.2"
 jacoco = "0.8.13"
 java = "25"
 jjwt = "0.13.0"
+jobrunr = "9.0.5"
 markpollack-agent-claude = "0.32.0"
 markpollack-agent-judge = "0.18.0"
 net-javacrumbs-shedlock = "7.11.0"
@@ -66,6 +67,7 @@ org-graalvm-polyglot-java = { module = "org.graalvm.polyglot:java", version.ref 
 org-graalvm-polyglot-js = { module = "org.graalvm.polyglot:js", version.ref = "graalvm" }
 org-graalvm-polyglot-polyglot = { module = "org.graalvm.polyglot:polyglot", version.ref = "graalvm" }
 org-graalvm-polyglot-python = { module = "org.graalvm.polyglot:python", version.ref = "graalvm" }
+org-jobrunr-jobrunr = { module = "org.jobrunr:jobrunr", version.ref = "jobrunr" }
 org-json = "org.json:json:20260814"
 org-jsoup = "org.jsoup:jsoup:1.24.1"
 org-mapstruct = { module = "org.mapstruct:mapstruct", version.ref = "org-mapstruct" }
