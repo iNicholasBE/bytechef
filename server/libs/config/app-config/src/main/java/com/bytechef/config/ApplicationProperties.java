@@ -5679,12 +5679,26 @@ public class ApplicationProperties {
              */
             private Dashboard dashboard = new Dashboard();
 
+            /**
+             * How often the background job server looks for jobs that are due, in seconds. JobRunr's default is 15 and
+             * its minimum on a SQL database is 5. A scheduled run starts at most this long after its moment.
+             */
+            private int pollIntervalInSeconds = 15;
+
             public Dashboard getDashboard() {
                 return dashboard;
             }
 
             public void setDashboard(Dashboard dashboard) {
                 this.dashboard = dashboard;
+            }
+
+            public int getPollIntervalInSeconds() {
+                return pollIntervalInSeconds;
+            }
+
+            public void setPollIntervalInSeconds(int pollIntervalInSeconds) {
+                this.pollIntervalInSeconds = pollIntervalInSeconds;
             }
 
             /**

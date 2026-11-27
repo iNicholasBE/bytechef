@@ -528,6 +528,7 @@ The system administrator account protects the `/actuator/**` endpoints that expo
 | `BYTECHEF_SCHEDULER_JOBRUNR_DASHBOARD_PORT` | Port of the JobRunr dashboard | `8000` |
 | `BYTECHEF_SCHEDULER_JOBRUNR_DASHBOARD_USERNAME` | Username for basic authentication on the JobRunr dashboard. No authentication when empty | |
 | `BYTECHEF_SCHEDULER_JOBRUNR_DASHBOARD_PASSWORD` | Password for basic authentication on the JobRunr dashboard | |
+| `BYTECHEF_SCHEDULER_JOBRUNR_POLL_INTERVAL_IN_SECONDS` | How often JobRunr looks for due jobs, in seconds (minimum 5). A scheduled run starts at most this long after its moment | `15` |
 | `BYTECHEF_SCHEDULER_QUARTZ_CLUSTERED` | Run Quartz in clustered mode. Required when more than one coordinator runs (EE) | `false` |
 | `BYTECHEF_SCHEDULER_QUARTZ_CLUSTER_CHECKIN_INTERVAL` | How often a clustered Quartz scheduler checks in, in milliseconds | `15000` |
 

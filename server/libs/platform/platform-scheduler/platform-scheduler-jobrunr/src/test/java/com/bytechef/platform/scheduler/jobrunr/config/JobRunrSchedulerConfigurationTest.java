@@ -28,6 +28,9 @@ import com.bytechef.platform.scheduler.config.QuartzSchedulerConfiguration;
 import com.bytechef.platform.scheduler.jobrunr.JobRunrConnectionRefreshScheduler;
 import com.bytechef.platform.scheduler.jobrunr.JobRunrStripeUsageReportScheduler;
 import com.bytechef.platform.scheduler.jobrunr.JobRunrTriggerScheduler;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -119,11 +122,23 @@ class JobRunrSchedulerConfigurationTest {
     }
 
     @Test
-    void testJobRunrProviderStartsTheDashboardWhenEnabled() {
-        applicationContextRunner.withBean(DataSource.class, JobRunrSchedulerConfigurationTest::createDataSource)
-            .withPropertyValues(
-                "bytechef.scheduler.provider=jobrunr", "bytechef.scheduler.jobrunr.dashboard.enabled=true",
-                "bytechef.scheduler.jobrunr.dashboard.port=0")
+    @SuppressFBWarnings(value = "UNENCRYPTED_SERVER_SOCKET", justification = "only finds a free port for the dashboard")
+    void testJobRunrProviderStartsTheDashboardWhenEnabled() throws IOException {
+        ApplicationProperties applicationProperties = new ApplicationProperties();
+
+        try (ServerSocket serverSocket = new ServerSocket(0)) {
+            applicationProperties.getScheduler()
+                .getJobrunr()
+                .getDashboard()
+                .setPort(serverSocket.getLocalPort());
+        }
+
+        new ApplicationContextRunner()
+            .withUserConfiguration(JobRunrSchedulerConfiguration.class)
+            .withBean(ApplicationProperties.class, () -> applicationProperties)
+            .withBean(DataSource.class, JobRunrSchedulerConfigurationTest::createDataSource)
+            .withPropertyValues("bytechef.scheduler.provider=jobrunr",
+                "bytechef.scheduler.jobrunr.dashboard.enabled=true")
             .run(context -> assertThat(context).hasNotFailed()
                 .hasSingleBean(JobRunrDashboardWebServer.class));
     }

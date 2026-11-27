@@ -62,6 +62,10 @@ import org.springframework.context.ApplicationEventPublisher;
  * system principal, as {@code SystemSecurityContextJob} does for Quartz.
  *
  * <p>
+ * Each method first waits until the moment its run was scheduled for ({@link ScheduledFireTimeFilter}), because JobRunr
+ * OSS can start a scheduled job up to one poll interval early.
+ *
+ * <p>
  * The methods are part of the stored jobs: renaming one or changing its parameters fails the jobs that are scheduled
  * with the old signature.
  *
@@ -112,7 +116,9 @@ public class JobRunrSchedulerJobs {
      * Refreshes the OAuth2 token of the connection and schedules the next refresh, as
      * {@code ConnectionOAuth2TokenRefreshJob} does.
      */
-    public void executeConnectionRefresh(long connectionId, String tenantId) {
+    public void executeConnectionRefresh(long connectionId, String tenantId) throws InterruptedException {
+        ScheduledFireTimeFilter.awaitScheduledTime();
+
         runAsSystem(() -> {
             ConnectionFacade connectionFacade = connectionFacadeProvider.getObject();
 
@@ -135,7 +141,10 @@ public class JobRunrSchedulerJobs {
      * Refreshes the dynamic webhook and schedules the next refresh at its new expiration date, as
      * {@code DynamicWebhookTriggerRefreshJob} does.
      */
-    public void executeDynamicWebhookTriggerRefresh(String workflowExecutionId, @Nullable Long connectionId) {
+    public void executeDynamicWebhookTriggerRefresh(String workflowExecutionId, @Nullable Long connectionId)
+        throws InterruptedException {
+        ScheduledFireTimeFilter.awaitScheduledTime();
+
         runAsSystem(() -> {
             WorkflowExecutionId parsedWorkflowExecutionId = WorkflowExecutionId.parse(workflowExecutionId);
 
@@ -174,7 +183,9 @@ public class JobRunrSchedulerJobs {
      *
      * @param continueParameters the task output as JSON, or an empty string when there is none
      */
-    public void executeOneTimeTask(String tenantId, long jobId, String continueParameters) {
+    public void executeOneTimeTask(String tenantId, long jobId, String continueParameters) throws InterruptedException {
+        ScheduledFireTimeFilter.awaitScheduledTime();
+
         runAsSystem(() -> TenantContext.runWithTenantId(tenantId, () -> {
             String jobResumeId = getJobResumeId(continueParameters, jobId);
             JobResumeFacade jobResumeFacade = jobResumeFacadeProvider.getIfAvailable();
@@ -205,7 +216,9 @@ public class JobRunrSchedulerJobs {
     /**
      * Publishes a {@link TriggerPollEvent}, as {@code PollingTriggerJob} does.
      */
-    public void executePollingTrigger(String workflowExecutionId) {
+    public void executePollingTrigger(String workflowExecutionId) throws InterruptedException {
+        ScheduledFireTimeFilter.awaitScheduledTime();
+
         runAsSystem(
             () -> eventPublisher.publishEvent(new TriggerPollEvent(WorkflowExecutionId.parse(workflowExecutionId))));
     }
@@ -214,7 +227,9 @@ public class JobRunrSchedulerJobs {
      * Publishes a {@link TriggerListenerEvent} with the moment the run was scheduled for, as {@code ScheduleTriggerJob}
      * does with the Quartz fire time.
      */
-    public void executeScheduleTrigger(String workflowExecutionId, String outputJson) {
+    public void executeScheduleTrigger(String workflowExecutionId, String outputJson) throws InterruptedException {
+        ScheduledFireTimeFilter.awaitScheduledTime();
+
         Instant fireTime = ScheduledFireTimeFilter.getFireTime();
 
         runAsSystem(() -> {
@@ -234,7 +249,9 @@ public class JobRunrSchedulerJobs {
     /**
      * Reports usage to Stripe, as {@code StripeUsageReportingJob} does.
      */
-    public void executeStripeUsageReport() {
+    public void executeStripeUsageReport() throws InterruptedException {
+        ScheduledFireTimeFilter.awaitScheduledTime();
+
         runAsSystem(() -> {
             log.info("Stripe usage reporting triggered");
 

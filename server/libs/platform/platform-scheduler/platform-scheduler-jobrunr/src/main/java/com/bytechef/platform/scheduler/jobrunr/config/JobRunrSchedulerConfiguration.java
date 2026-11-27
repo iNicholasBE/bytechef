@@ -37,6 +37,7 @@ import com.bytechef.platform.scheduler.jobrunr.job.ScheduledFireTimeFilter;
 import com.bytechef.platform.workflow.execution.accessor.JobPrincipalAccessorRegistry;
 import com.bytechef.platform.workflow.execution.facade.JobResumeFacade;
 import com.bytechef.platform.workflow.execution.facade.TriggerStateFacade;
+import java.time.Duration;
 import java.util.List;
 import javax.sql.DataSource;
 import org.jobrunr.dashboard.JobRunrDashboardWebServer;
@@ -66,7 +67,8 @@ import org.springframework.context.event.EventListener;
  *
  * <p>
  * Every node can schedule and cancel; only coordinator nodes run the {@link BackgroundJobServer} that executes the jobs
- * and, when enabled, the dashboard. Worker count, poll interval and thread type are JobRunr's defaults.
+ * and, when enabled, the dashboard. Worker count and thread type are JobRunr's defaults; the poll interval is
+ * {@code bytechef.scheduler.jobrunr.poll-interval-in-seconds} (JobRunr's default, 15).
  *
  * @author Nicholas D'hondt
  */
@@ -155,12 +157,16 @@ public class JobRunrSchedulerConfiguration {
     @Bean(destroyMethod = "stop")
     @ConditionalOnCoordinator
     BackgroundJobServer jobRunrBackgroundJobServer(
-        ApplicationContext applicationContext, JsonMapper jobRunrJsonMapper,
-        StorageProvider jobRunrStorageProvider) {
+        ApplicationContext applicationContext, ApplicationProperties applicationProperties,
+        JsonMapper jobRunrJsonMapper, StorageProvider jobRunrStorageProvider) {
+
+        ApplicationProperties.Scheduler.JobRunr jobRunr = applicationProperties.getScheduler()
+            .getJobrunr();
 
         BackgroundJobServer backgroundJobServer = new BackgroundJobServer(
             jobRunrStorageProvider, jobRunrJsonMapper, applicationContext::getBean,
-            usingStandardBackgroundJobServerConfiguration());
+            usingStandardBackgroundJobServerConfiguration()
+                .andPollInterval(Duration.ofSeconds(jobRunr.getPollIntervalInSeconds())));
 
         backgroundJobServer.setJobFilters(List.of(new OneTimeTaskRetryFilter(), new ScheduledFireTimeFilter()));
 

@@ -151,6 +151,7 @@ class JobRunrTriggerSchedulerIntTest {
                 .getListenerParameters();
             Instant fireTime = listenerParameters.executionDate();
 
+            assertThat(receivedEvent.receivedAt()).isAfterOrEqualTo(fireTime);
             assertThat(fireTime.getEpochSecond() % 10).isZero();
             assertThat(fireTime.getNano()).isZero();
             assertThat(listenerParameters.output()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
@@ -259,6 +260,8 @@ class JobRunrTriggerSchedulerIntTest {
         await().atMost(Duration.ofSeconds(30))
             .until(() -> eventCollector.resumeEvents(1001L) == 1);
 
+        assertThat(eventCollector.resumeReceivedAt(1001L)).isAfterOrEqualTo(executeAt);
+
         System.out.printf(
             "ONE_TIME_DELTA executeAt=%s received=%s deltaMillis=%d%n", executeAt,
             eventCollector.resumeReceivedAt(1001L), Duration.between(executeAt, eventCollector.resumeReceivedAt(1001L))
@@ -282,7 +285,8 @@ class JobRunrTriggerSchedulerIntTest {
         await().atMost(Duration.ofSeconds(30))
             .until(() -> eventCollector.resumeEvents(1002L) == 1);
 
-        assertThat(eventCollector.resumeReceivedAt(1002L)).isBefore(later);
+        assertThat(eventCollector.resumeReceivedAt(1002L)).isBefore(later)
+            .isAfterOrEqualTo(sooner);
 
         triggerScheduler.scheduleOneTimeTask(Instant.now()
             .plusSeconds(6), Map.of(), 1003L);
