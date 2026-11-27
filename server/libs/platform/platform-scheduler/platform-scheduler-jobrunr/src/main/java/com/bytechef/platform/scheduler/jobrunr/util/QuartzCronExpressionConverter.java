@@ -22,6 +22,8 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.zone.ZoneOffsetTransition;
 import java.time.zone.ZoneRules;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -44,6 +46,7 @@ public final class QuartzCronExpressionConverter {
     private static final Pattern DAY_OF_WEEK_NUMBER = Pattern.compile("(?<![/\\d])([1-7])(?!\\d)");
     private static final Pattern UNSUPPORTED_CHARACTERS = Pattern.compile("[LW#]");
 
+    private static final List<String> DAY_NAMES = List.of("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT");
     private static final Set<String> WILDCARDS = Set.of("*", "?");
 
     private QuartzCronExpressionConverter() {
@@ -73,7 +76,7 @@ public final class QuartzCronExpressionConverter {
 
         if (UNSUPPORTED_CHARACTERS.matcher(dayOfMonth.toUpperCase(Locale.ROOT))
             .find() ||
-            UNSUPPORTED_CHARACTERS.matcher(dayOfWeek)
+            UNSUPPORTED_CHARACTERS.matcher(replaceDayNames(dayOfWeek))
                 .find()) {
 
             throw new IllegalArgumentException(
@@ -82,7 +85,7 @@ public final class QuartzCronExpressionConverter {
 
         return String.join(
             " ", fields[0], fields[1], fields[2], dayOfMonth.equals("?") ? "*" : dayOfMonth, fields[4],
-            dayOfWeek.equals("?") ? "*" : shiftDayOfWeekNumbers(dayOfWeek));
+            dayOfWeek.equals("?") ? "*" : convertDayOfWeek(dayOfWeek, quartzExpression));
     }
 
     /**
@@ -143,9 +146,56 @@ public final class QuartzCronExpressionConverter {
     }
 
     /**
-     * Quartz numbers the days of the week 1 (Sunday) to 7 (Saturday), JobRunr 0 (Sunday) to 6 (Saturday). Step sizes
-     * ({@code 1/2}: only the {@code 1} is a day) keep their value.
+     * Quartz numbers the days of the week 1 (Sunday) to 7 (Saturday), JobRunr 0 (Sunday) to 6 (Saturday). Day names
+     * become Quartz numbers first. A range that wraps around the end of the week ({@code FRI-MON}, {@code MON-SUN}) is
+     * valid in Quartz but not in JobRunr, so it is split in two ranges; with a step it is refused, as is a day name
+     * with a step, which Quartz reads as that day alone. Then every number is shifted; step sizes ({@code 1/2}: only
+     * the {@code 1} is a day) keep their value.
      */
+    private static String convertDayOfWeek(String dayOfWeek, String quartzExpression) {
+        List<String> items = new ArrayList<>();
+
+        for (String item : dayOfWeek.split(",")) {
+            String[] rangeAndStep = item.split("/", 2);
+
+            if (rangeAndStep.length == 2 && !rangeAndStep[0].equals(replaceDayNames(rangeAndStep[0]))) {
+                throw new IllegalArgumentException(
+                    "A day name with a step is not supported by the JobRunr scheduler provider (Quartz ignores the " +
+                        "step there): " + quartzExpression);
+            }
+
+            String range = replaceDayNames(rangeAndStep[0]);
+            String[] bounds = range.split("-", 2);
+
+            if (bounds.length == 2 && Integer.parseInt(bounds[0]) > Integer.parseInt(bounds[1])) {
+                if (rangeAndStep.length == 2) {
+                    throw new IllegalArgumentException(
+                        "A day-of-week range that wraps around the week with a step is not supported by the JobRunr " +
+                            "scheduler provider: " + quartzExpression);
+                }
+
+                items.add(bounds[0] + "-7");
+                items.add("1-" + bounds[1]);
+
+                continue;
+            }
+
+            items.add(rangeAndStep.length == 2 ? range + "/" + rangeAndStep[1] : range);
+        }
+
+        return shiftDayOfWeekNumbers(String.join(",", items));
+    }
+
+    private static String replaceDayNames(String range) {
+        String result = range;
+
+        for (int index = 0; index < DAY_NAMES.size(); index++) {
+            result = result.replace(DAY_NAMES.get(index), String.valueOf(index + 1));
+        }
+
+        return result;
+    }
+
     private static String shiftDayOfWeekNumbers(String dayOfWeek) {
         Matcher matcher = DAY_OF_WEEK_NUMBER.matcher(dayOfWeek);
         StringBuilder result = new StringBuilder();

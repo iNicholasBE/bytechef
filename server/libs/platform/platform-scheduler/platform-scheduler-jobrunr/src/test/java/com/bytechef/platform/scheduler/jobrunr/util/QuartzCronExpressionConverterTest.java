@@ -108,7 +108,9 @@ class QuartzCronExpressionConverterTest {
         Stream.of(
             "* * * * ?", "*/5 * * * ?", "0 9 * * ?", "0 9 ? * MON-FRI", "30 8 ? * 2-6", "0 0 1 * ?",
             "0 12 ? * SUN", "15 10 ? * 6", "0/30 8-17 ? * MON-FRI", "0 6,18 * * ?", "0 0 ? JAN,JUL 1",
-            "0 0 1-7 * ?", "5 4 ? * 1/2", "0 22 ? * 2-6", "0 0 ? * 1,7", "0 9 15 * ?")
+            "0 0 1-7 * ?", "5 4 ? * 1/2", "0 22 ? * 2-6", "0 0 ? * 1,7", "0 9 15 * ?", "0 9 ? * MON-SUN",
+            "0 9 ? * FRI-MON", "0 9 ? * SUN-SAT", "0 9 ? * SAT-SUN", "0 9 ? * 6-2", "0 9 ? * mon-fri",
+            "0 9 ? * MON,WED-FRI", "0 9 ? * 2/3")
             .map(expression -> "0 " + expression)
             .forEach(patterns::add);
 
@@ -195,7 +197,9 @@ class QuartzCronExpressionConverterTest {
         assertThat(QuartzCronExpressionConverter.convert("0 0 9 ? * 2-6")).isEqualTo("0 0 9 * * 1-5");
         assertThat(QuartzCronExpressionConverter.convert("0 0 9 ? * 1,7")).isEqualTo("0 0 9 * * 0,6");
         assertThat(QuartzCronExpressionConverter.convert("0 0 9 ? * 1/2")).isEqualTo("0 0 9 * * 0/2");
-        assertThat(QuartzCronExpressionConverter.convert("0 0 9 ? * MON-FRI")).isEqualTo("0 0 9 * * MON-FRI");
+        assertThat(QuartzCronExpressionConverter.convert("0 0 9 ? * MON-FRI")).isEqualTo("0 0 9 * * 1-5");
+        assertThat(QuartzCronExpressionConverter.convert("0 0 9 ? * MON-SUN")).isEqualTo("0 0 9 * * 1-6,0-0");
+        assertThat(QuartzCronExpressionConverter.convert("0 0 9 ? * FRI-MON")).isEqualTo("0 0 9 * * 5-6,0-1");
         assertThat(QuartzCronExpressionConverter.convert("0 0 0 */3 * ?")).isEqualTo("0 0 0 */3 * *");
         assertThat(QuartzCronExpressionConverter.convert("0 0 0 1 */2 ? *")).isEqualTo("0 0 0 1 */2 *");
     }
@@ -203,7 +207,7 @@ class QuartzCronExpressionConverterTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "0 0 0 L * ?", "0 0 0 15W * ?", "0 0 0 LW * ?", "0 0 0 L-3 * ?", "0 0 0 ? * 6L", "0 0 0 ? * 6#3",
-        "0 0 0 1 1 ? 2027", "0 0 0 * *", "0 0 0 * * ? * *"
+        "0 0 0 1 1 ? 2027", "0 0 0 * *", "0 0 0 * * ? * *", "0 0 0 ? * FRI-MON/2", "0 0 0 ? * MON/2"
     })
     void testConvertRefusesExpressionsJobRunrOssCannotRepresent(String quartzPattern) {
         assertThatThrownBy(() -> QuartzCronExpressionConverter.convert(quartzPattern))
