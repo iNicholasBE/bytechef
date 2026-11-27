@@ -295,6 +295,48 @@ and their availability is AWS's concern rather than yours.
 Switching backends is a provider change plus a replay of existing schedules; workflow definitions are
 unaffected.
 
+### `JOBRUNR`
+
+The single-server `server-app` can run its schedules on [JobRunr](https://www.jobrunr.io/) OSS instead of
+Quartz. JobRunr stores its jobs in the application database, in its own `jobrunr_*` tables, which it
+creates and migrates itself on the first start. With any other provider none of this is created.
+
+```yaml
+bytechef:
+  scheduler:
+    provider: JOBRUNR
+    jobrunr:
+      dashboard:
+        enabled: true   # optional, the dashboard lists every schedule and its runs
+        port: 8000
+      poll-interval-in-seconds: 15
+```
+
+How each kind of work maps:
+
+| Work | JobRunr |
+|---|---|
+| Schedule (cron) trigger | a recurring job with the trigger's cron expression and time zone |
+| Polling trigger | a recurring job every `bytechef.coordinator.trigger.polling.check-period` minutes, plus one poll right away |
+| One-time task, webhook refresh, token refresh | a job scheduled at the instant |
+
+Differences from `QUARTZ` to know about:
+
+- JobRunr looks for due work every `poll-interval-in-seconds` (15 by default, 5 at least), so a run starts
+  up to that long after its moment. Quartz starts it within milliseconds when it is idle.
+- Cron expressions with `L`, `W`, `#` or a specific year are refused with an error, as JobRunr OSS has
+  no equivalent for them.
+- A run that throws is retried by JobRunr (10 times, with growing delays) and shows as failed in the
+  dashboard after the last attempt. While a run of a recurring job waits for its retry, no new run of
+  that job is started.
+- Daylight saving time: a daily trigger whose local time does not exist on the day the clock moves
+  forward runs one hour later that day; Quartz skips that day. Triggers that run every N minutes keep
+  their pace through both changes.
+- JobRunr OSS is documented for up to 100 recurring jobs. Every enabled schedule or polling trigger is
+  one recurring job.
+- Only coordinator nodes execute jobs; every node can schedule and cancel them. This provider is not
+  wired into `scheduler-app` yet.
+
 ## Plan-limit enforcement in HA
 
 <Callout type="warn" title="Coming soon">

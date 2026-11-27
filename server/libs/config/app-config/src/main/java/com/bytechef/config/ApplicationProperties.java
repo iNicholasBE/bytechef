@@ -5621,6 +5621,10 @@ public class ApplicationProperties {
              */
             AWS,
             /**
+             * JobRunr OSS, storing its jobs in the application database
+             */
+            JOBRUNR,
+            /**
              * Quartz Scheduler
              */
             QUARTZ
@@ -5632,9 +5636,22 @@ public class ApplicationProperties {
         private Provider provider;
 
         /**
+         * JobRunr scheduler configuration
+         */
+        private JobRunr jobrunr = new JobRunr();
+
+        /**
          * Quartz scheduler configuration
          */
         private Quartz quartz = new Quartz();
+
+        public JobRunr getJobrunr() {
+            return jobrunr;
+        }
+
+        public void setJobrunr(JobRunr jobrunr) {
+            this.jobrunr = jobrunr;
+        }
 
         public Provider getProvider() {
             return provider;
@@ -5650,6 +5667,97 @@ public class ApplicationProperties {
 
         public void setQuartz(Quartz quartz) {
             this.quartz = quartz;
+        }
+
+        /**
+         * JobRunr scheduler configuration, used when the provider is {@link Provider#JOBRUNR}.
+         */
+        public static class JobRunr {
+
+            /**
+             * JobRunr dashboard configuration
+             */
+            private Dashboard dashboard = new Dashboard();
+
+            /**
+             * How often the background job server looks for jobs that are due, in seconds. JobRunr's default is 15 and
+             * its minimum on a SQL database is 5. A scheduled run starts at most this long after its moment.
+             */
+            private int pollIntervalInSeconds = 15;
+
+            public Dashboard getDashboard() {
+                return dashboard;
+            }
+
+            public void setDashboard(Dashboard dashboard) {
+                this.dashboard = dashboard;
+            }
+
+            public int getPollIntervalInSeconds() {
+                return pollIntervalInSeconds;
+            }
+
+            public void setPollIntervalInSeconds(int pollIntervalInSeconds) {
+                this.pollIntervalInSeconds = pollIntervalInSeconds;
+            }
+
+            /**
+             * JobRunr dashboard, a separate web server that lists the scheduled triggers and their runs.
+             */
+            public static class Dashboard {
+
+                /**
+                 * Whether the JobRunr dashboard is started on coordinator nodes
+                 */
+                private boolean enabled;
+
+                /**
+                 * Password for basic authentication on the dashboard, used when a username is set
+                 */
+                private String password;
+
+                /**
+                 * Port the dashboard listens on
+                 */
+                private int port = 8000;
+
+                /**
+                 * Username for basic authentication on the dashboard; no authentication when empty
+                 */
+                private String username;
+
+                public boolean isEnabled() {
+                    return enabled;
+                }
+
+                public void setEnabled(boolean enabled) {
+                    this.enabled = enabled;
+                }
+
+                public String getPassword() {
+                    return password;
+                }
+
+                public void setPassword(String password) {
+                    this.password = password;
+                }
+
+                public int getPort() {
+                    return port;
+                }
+
+                public void setPort(int port) {
+                    this.port = port;
+                }
+
+                public String getUsername() {
+                    return username;
+                }
+
+                public void setUsername(String username) {
+                    this.username = username;
+                }
+            }
         }
 
         /**

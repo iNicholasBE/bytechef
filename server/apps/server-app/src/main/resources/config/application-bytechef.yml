@@ -310,8 +310,17 @@ bytechef:
   resources:
     web: file:///opt/bytechef/client/
   scheduler:
-    # Trigger scheduler provider (AWS(EE) | QUARTZ) default: QUARTZ
+    # Trigger scheduler provider (AWS(EE) | JOBRUNR | QUARTZ) default: QUARTZ
     provider: QUARTZ
+    jobrunr:
+      dashboard:
+        # Start the JobRunr dashboard on coordinator nodes (provider JOBRUNR only). default: false
+        enabled: false
+        # Port of the JobRunr dashboard. default: 8000
+        port: 8000
+      # How often the JobRunr background job server looks for due jobs, in seconds (minimum 5). A scheduled run
+      # starts at most this long after its moment. default: 15
+      poll-interval-in-seconds: 15
     quartz:
       # Clustered mode: required when more than one coordinator runs (EE). default: false
       clustered: false
