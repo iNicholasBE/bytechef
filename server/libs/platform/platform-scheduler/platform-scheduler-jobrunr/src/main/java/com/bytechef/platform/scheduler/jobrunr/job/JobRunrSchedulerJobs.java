@@ -30,6 +30,7 @@ import com.bytechef.platform.connection.facade.ConnectionFacade;
 import com.bytechef.platform.definition.WorkflowNodeType;
 import com.bytechef.platform.scheduler.ConnectionRefreshScheduler;
 import com.bytechef.platform.scheduler.TriggerScheduler;
+import com.bytechef.platform.scheduler.jobrunr.JobRunrSchedules;
 import com.bytechef.platform.security.util.SecurityUtils;
 import com.bytechef.platform.workflow.WorkflowExecutionId;
 import com.bytechef.platform.workflow.coordinator.event.TriggerListenerEvent;
@@ -83,6 +84,7 @@ public class JobRunrSchedulerJobs {
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectProvider<JobPrincipalAccessorRegistry> jobPrincipalAccessorRegistryProvider;
     private final ObjectProvider<JobResumeFacade> jobResumeFacadeProvider;
+    private final JobRunrSchedules jobRunrSchedules;
     private final ObjectProvider<TriggerDefinitionFacade> triggerDefinitionFacadeProvider;
     private final TriggerScheduler triggerScheduler;
     private final ObjectProvider<TriggerStateFacade> triggerStateFacadeProvider;
@@ -95,7 +97,7 @@ public class JobRunrSchedulerJobs {
         ObjectProvider<ConnectionFacade> connectionFacadeProvider,
         ConnectionRefreshScheduler connectionRefreshScheduler, ApplicationEventPublisher eventPublisher,
         ObjectProvider<JobPrincipalAccessorRegistry> jobPrincipalAccessorRegistryProvider,
-        ObjectProvider<JobResumeFacade> jobResumeFacadeProvider,
+        ObjectProvider<JobResumeFacade> jobResumeFacadeProvider, JobRunrSchedules jobRunrSchedules,
         ObjectProvider<TriggerDefinitionFacade> triggerDefinitionFacadeProvider, TriggerScheduler triggerScheduler,
         ObjectProvider<TriggerStateFacade> triggerStateFacadeProvider,
         ObjectProvider<WorkflowService> workflowServiceProvider) {
@@ -106,6 +108,7 @@ public class JobRunrSchedulerJobs {
         this.eventPublisher = eventPublisher;
         this.jobPrincipalAccessorRegistryProvider = jobPrincipalAccessorRegistryProvider;
         this.jobResumeFacadeProvider = jobResumeFacadeProvider;
+        this.jobRunrSchedules = jobRunrSchedules;
         this.triggerDefinitionFacadeProvider = triggerDefinitionFacadeProvider;
         this.triggerScheduler = triggerScheduler;
         this.triggerStateFacadeProvider = triggerStateFacadeProvider;
@@ -217,6 +220,12 @@ public class JobRunrSchedulerJobs {
      * Publishes a {@link TriggerPollEvent}, as {@code PollingTriggerJob} does.
      */
     public void executePollingTrigger(String workflowExecutionId) throws InterruptedException {
+        if (!jobRunrSchedules.isCurrentGeneration(ScheduledFireTimeFilter.getRecurringJobId())) {
+            log.debug("Skipping a run of a cancelled trigger for workflowExecutionId={}", workflowExecutionId);
+
+            return;
+        }
+
         ScheduledFireTimeFilter.awaitScheduledTime();
 
         runAsSystem(
@@ -228,6 +237,12 @@ public class JobRunrSchedulerJobs {
      * does with the Quartz fire time.
      */
     public void executeScheduleTrigger(String workflowExecutionId, String outputJson) throws InterruptedException {
+        if (!jobRunrSchedules.isCurrentGeneration(ScheduledFireTimeFilter.getRecurringJobId())) {
+            log.debug("Skipping a run of a cancelled trigger for workflowExecutionId={}", workflowExecutionId);
+
+            return;
+        }
+
         ScheduledFireTimeFilter.awaitScheduledTime();
 
         Instant fireTime = ScheduledFireTimeFilter.getFireTime();

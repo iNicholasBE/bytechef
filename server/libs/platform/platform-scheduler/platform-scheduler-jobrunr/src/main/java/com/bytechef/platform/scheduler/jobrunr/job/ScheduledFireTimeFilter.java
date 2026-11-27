@@ -22,6 +22,7 @@ import java.util.Optional;
 import org.jobrunr.jobs.Job;
 import org.jobrunr.jobs.filters.JobServerFilter;
 import org.jobrunr.jobs.states.ScheduledState;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Makes the moment a run was scheduled for available to the job body, the JobRunr counterpart of Quartz's
@@ -40,6 +41,14 @@ public class ScheduledFireTimeFilter implements JobServerFilter {
 
     private static final ThreadLocal<Instant> FIRE_TIME = new ThreadLocal<>();
     private static final ThreadLocal<Instant> NOT_BEFORE = new ThreadLocal<>();
+    private static final ThreadLocal<String> RECURRING_JOB_ID = new ThreadLocal<>();
+
+    /**
+     * @return the id of the recurring job that created the run on this thread, or {@code null}
+     */
+    public static @Nullable String getRecurringJobId() {
+        return RECURRING_JOB_ID.get();
+    }
 
     /**
      * Sleeps until the moment the run was scheduled for, when a worker picked it up early. Returns at once outside a
@@ -79,17 +88,22 @@ public class ScheduledFireTimeFilter implements JobServerFilter {
         job.getLastJobStateOfType(ScheduledState.class)
             .map(ScheduledState::getScheduledAt)
             .ifPresentOrElse(NOT_BEFORE::set, NOT_BEFORE::remove);
+
+        job.getRecurringJobId()
+            .ifPresentOrElse(RECURRING_JOB_ID::set, RECURRING_JOB_ID::remove);
     }
 
     @Override
     public void onProcessingFailed(Job job, Exception exception) {
         FIRE_TIME.remove();
         NOT_BEFORE.remove();
+        RECURRING_JOB_ID.remove();
     }
 
     @Override
     public void onProcessingSucceeded(Job job) {
         FIRE_TIME.remove();
         NOT_BEFORE.remove();
+        RECURRING_JOB_ID.remove();
     }
 }

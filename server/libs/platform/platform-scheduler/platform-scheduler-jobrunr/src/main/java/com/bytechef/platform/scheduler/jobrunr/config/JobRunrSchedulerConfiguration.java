@@ -138,15 +138,16 @@ public class JobRunrSchedulerConfiguration {
         ObjectProvider<ConnectionFacade> connectionFacadeProvider,
         ConnectionRefreshScheduler jobRunrConnectionRefreshScheduler, ApplicationEventPublisher eventPublisher,
         ObjectProvider<JobPrincipalAccessorRegistry> jobPrincipalAccessorRegistryProvider,
-        ObjectProvider<JobResumeFacade> jobResumeFacadeProvider,
+        ObjectProvider<JobResumeFacade> jobResumeFacadeProvider, JobRunrSchedules jobRunrSchedules,
         ObjectProvider<TriggerDefinitionFacade> triggerDefinitionFacadeProvider,
         TriggerScheduler jobRunrTriggerScheduler, ObjectProvider<TriggerStateFacade> triggerStateFacadeProvider,
         ObjectProvider<WorkflowService> workflowServiceProvider) {
 
         return new JobRunrSchedulerJobs(
             billingUsageFacadeProvider, connectionFacadeProvider, jobRunrConnectionRefreshScheduler, eventPublisher,
-            jobPrincipalAccessorRegistryProvider, jobResumeFacadeProvider, triggerDefinitionFacadeProvider,
-            jobRunrTriggerScheduler, triggerStateFacadeProvider, workflowServiceProvider);
+            jobPrincipalAccessorRegistryProvider, jobResumeFacadeProvider, jobRunrSchedules,
+            triggerDefinitionFacadeProvider, jobRunrTriggerScheduler, triggerStateFacadeProvider,
+            workflowServiceProvider);
     }
 
     @Bean

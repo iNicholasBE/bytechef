@@ -16,27 +16,21 @@
 
 package com.bytechef.platform.scheduler.jobrunr;
 
-import static org.jobrunr.jobs.states.StateName.ENQUEUED;
 import static org.jobrunr.jobs.states.StateName.PROCESSING;
-import static org.jobrunr.jobs.states.StateName.SCHEDULED;
-import static org.jobrunr.storage.Paging.AmountBasedList.ascOnUpdatedAt;
 
 import com.bytechef.platform.scheduler.jobrunr.job.JobRunrSchedulerJobs;
 import com.bytechef.platform.scheduler.jobrunr.util.JobRunrIds;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import org.jobrunr.jobs.Job;
-import org.jobrunr.jobs.RecurringJob;
 import org.jobrunr.jobs.lambdas.IocJobLambda;
 import org.jobrunr.scheduling.JobBuilder;
 import org.jobrunr.scheduling.JobScheduler;
 import org.jobrunr.scheduling.RecurringJobBuilder;
-import org.jobrunr.storage.ConcurrentJobModificationException;
 import org.jobrunr.storage.JobNotFoundException;
+import org.jobrunr.storage.JobRunrMetadata;
 import org.jobrunr.storage.StorageProvider;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -55,8 +49,10 @@ import org.slf4j.LoggerFactory;
  * refresh jobs) lands in the slot it does not occupy.</li>
  * <li>A background job server remembers the last run it created per recurring job id, also after the recurring job is
  * deleted, and catches up every run since then when the id comes back. Each schedule of a recurring key therefore gets
- * a new generation ({@code <base>-g<epoch millis>}), and cancelling deletes every generation of the key together with
- * the run JobRunr already created ahead of time.</li>
+ * a new generation ({@code <base>-g<epoch millis>}). The current generation of each key is kept in JobRunr's metadata
+ * table, so scheduling and cancelling cost one primary key lookup, however many recurring jobs exist. A run that
+ * JobRunr created ahead of time for a generation that is no longer current does nothing
+ * ({@link #isCurrentGeneration}).</li>
  * </ul>
  *
  * @author Nicholas D'hondt
@@ -64,9 +60,9 @@ import org.slf4j.LoggerFactory;
 public class JobRunrSchedules {
 
     static final String GENERATION_SEPARATOR = "-g";
+    static final String RECURRING_JOB_GENERATION = "bytechef-recurring-job-generation";
 
     private static final int SLOT_COUNT = 2;
-    private static final int PENDING_RUN_PAGE_SIZE = 1000;
 
     private static final Logger log = LoggerFactory.getLogger(JobRunrSchedules.class);
 
@@ -96,22 +92,20 @@ public class JobRunrSchedules {
     }
 
     /**
-     * Deletes every generation of the recurring job and the runs it created ahead of time that have not started.
+     * Deletes the current generation of the recurring job. A run of it that JobRunr already created ahead of time
+     * starts but does nothing, see {@link #isCurrentGeneration(String)}.
      */
     public void cancelRecurring(String baseId) {
-        String generationPrefix = baseId + GENERATION_SEPARATOR;
+        JobRunrMetadata currentGeneration = storageProvider.getMetadata(RECURRING_JOB_GENERATION, baseId);
 
-        for (RecurringJob recurringJob : storageProvider.getRecurringJobs()) {
-            String recurringJobId = recurringJob.getId();
-
-            if (recurringJobId.startsWith(generationPrefix)) {
-                jobScheduler.deleteRecurringJob(recurringJobId);
-
-                deletePendingRuns(recurringJobId);
-
-                log.trace("Removed recurring job {}", recurringJobId);
-            }
+        if (currentGeneration == null) {
+            return;
         }
+
+        jobScheduler.deleteRecurringJob(currentGeneration.getValue());
+        storageProvider.deleteMetadata(RECURRING_JOB_GENERATION, baseId);
+
+        log.trace("Removed recurring job {}", currentGeneration.getValue());
     }
 
     /**
@@ -167,6 +161,27 @@ public class JobRunrSchedules {
     }
 
     /**
+     * @return whether the recurring job that created a run is still the current generation of its key; {@code true} for
+     *         a run that no recurring job created
+     */
+    public boolean isCurrentGeneration(@Nullable String recurringJobId) {
+        if (recurringJobId == null) {
+            return true;
+        }
+
+        int separatorIndex = recurringJobId.lastIndexOf(GENERATION_SEPARATOR);
+
+        if (separatorIndex < 0) {
+            return true;
+        }
+
+        JobRunrMetadata currentGeneration = storageProvider.getMetadata(
+            RECURRING_JOB_GENERATION, recurringJobId.substring(0, separatorIndex));
+
+        return currentGeneration != null && recurringJobId.equals(currentGeneration.getValue());
+    }
+
+    /**
      * Replaces the recurring job of the base id with a new generation built from the given builder.
      *
      * @return the id of the new generation
@@ -174,38 +189,12 @@ public class JobRunrSchedules {
     public String scheduleRecurring(String baseId, RecurringJobBuilder recurringJobBuilder) {
         cancelRecurring(baseId);
 
-        String recurringJobId = baseId + GENERATION_SEPARATOR + System.currentTimeMillis();
+        String recurringJobId = jobScheduler.createRecurrently(
+            recurringJobBuilder.withId(baseId + GENERATION_SEPARATOR + System.currentTimeMillis()));
 
-        return jobScheduler.createRecurrently(recurringJobBuilder.withId(recurringJobId));
-    }
+        storageProvider.saveMetadata(new JobRunrMetadata(RECURRING_JOB_GENERATION, baseId, recurringJobId));
 
-    private void deletePendingRuns(String recurringJobId) {
-        Instant latestScheduledAt = storageProvider.getRecurringJobLatestScheduledInstant(
-            recurringJobId, SCHEDULED, ENQUEUED);
-
-        if (latestScheduledAt == null) {
-            return;
-        }
-
-        List<Job> pendingJobs = new ArrayList<>(
-            storageProvider.getScheduledJobs(latestScheduledAt.plusMillis(1), ascOnUpdatedAt(PENDING_RUN_PAGE_SIZE)));
-
-        pendingJobs.addAll(storageProvider.getJobList(ENQUEUED, ascOnUpdatedAt(PENDING_RUN_PAGE_SIZE)));
-
-        for (Job pendingJob : pendingJobs) {
-            String pendingRecurringJobId = pendingJob.getRecurringJobId()
-                .orElse(null);
-
-            if (Objects.equals(pendingRecurringJobId, recurringJobId)) {
-                try {
-                    jobScheduler.delete(pendingJob.getId(), "Trigger cancelled");
-                } catch (ConcurrentJobModificationException concurrentJobModificationException) {
-                    log.debug(
-                        "Run {} of recurring job {} changed state while it was being cancelled", pendingJob.getId(),
-                        recurringJobId);
-                }
-            }
-        }
+        return recurringJobId;
     }
 
     private @Nullable Job findJob(UUID jobId) {

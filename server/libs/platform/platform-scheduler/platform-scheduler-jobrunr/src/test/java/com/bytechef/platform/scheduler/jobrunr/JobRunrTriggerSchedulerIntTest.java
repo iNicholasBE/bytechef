@@ -170,8 +170,12 @@ class JobRunrTriggerSchedulerIntTest {
             .size(), Duration.ofSeconds(20));
     }
 
+    /**
+     * A cancel removes the recurring job at once. The run JobRunr already created ahead of time still starts, but does
+     * nothing because its generation is no longer current, so no trigger fires after the cancel.
+     */
     @Test
-    void testCancelScheduleTriggerRemovesTheRecurringJobAndItsPendingRun() {
+    void testCancelScheduleTriggerRemovesTheRecurringJobAndNothingFiresAfterwards() {
         WorkflowExecutionId workflowExecutionId = workflowExecutionId("cancel-pending");
         String baseId = JobRunrIds.recurringJobBaseId("schedule-trigger", workflowExecutionId.toString());
 
@@ -183,7 +187,6 @@ class JobRunrTriggerSchedulerIntTest {
         triggerScheduler.cancelScheduleTrigger(workflowExecutionId.toString());
 
         assertThat(getRecurringJobIds(baseId)).isEmpty();
-        assertThat(getPendingRuns(baseId)).isEmpty();
         assertNoMoreEvents(() -> eventCollector.listenerEvents(workflowExecutionId)
             .size(), Duration.ofSeconds(20));
     }
