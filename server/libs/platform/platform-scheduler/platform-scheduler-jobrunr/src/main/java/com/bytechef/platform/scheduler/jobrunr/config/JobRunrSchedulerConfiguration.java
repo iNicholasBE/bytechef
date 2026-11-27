@@ -42,6 +42,7 @@ import java.util.List;
 import javax.sql.DataSource;
 import org.jobrunr.dashboard.JobRunrDashboardWebServer;
 import org.jobrunr.dashboard.JobRunrDashboardWebServerConfiguration;
+import org.jobrunr.jobs.details.CachingJobDetailsGenerator;
 import org.jobrunr.jobs.mappers.JobMapper;
 import org.jobrunr.scheduling.JobScheduler;
 import org.jobrunr.server.BackgroundJobServer;
@@ -100,9 +101,13 @@ public class JobRunrSchedulerConfiguration {
         return new Jackson3JsonMapper();
     }
 
+    /**
+     * Uses the caching job details generator, as JobRunr's own configuration does: the bytecode of each job lambda is
+     * analysed once instead of on every schedule call.
+     */
     @Bean
     JobScheduler jobRunrJobScheduler(StorageProvider jobRunrStorageProvider) {
-        return new JobScheduler(jobRunrStorageProvider, List.of());
+        return new JobScheduler(jobRunrStorageProvider, new CachingJobDetailsGenerator(), List.of());
     }
 
     @Bean

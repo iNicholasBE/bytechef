@@ -379,6 +379,8 @@ class JobRunrTriggerSchedulerIntTest {
             JobRunrIds.jobId("dynamic-webhook-trigger-refresh:" + withConnection, 0));
 
         assertThat(job.getState()).isEqualTo(StateName.SCHEDULED);
+        assertThat(job.getJobDetails()
+            .getCacheable()).isTrue();
         assertThat(job.<ScheduledState>getJobState()
             .getScheduledAt()).isEqualTo(webhookExpirationDate);
         assertThat(job.getJobDetails()
